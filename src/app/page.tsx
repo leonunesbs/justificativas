@@ -2,8 +2,7 @@
 
 import { UUID } from 'crypto';
 import { zodResolver } from '@hookform/resolvers/zod';
-import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -55,6 +54,32 @@ export default function Home() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      patientName: '',
+      medicalRecord: '',
+      type: 'Eletivo',
+      surgery: '',
+      clinicalData: '',
+      justification: '',
+    },
+  });
+
+  // Load from localStorage on component mount
+  useEffect(() => {
+    const storedData = localStorage.getItem('dataList');
+    if (storedData) {
+      setDataList(JSON.parse(storedData));
+    }
+  }, []);
+
+  // Save to localStorage after specific actions
+  const saveDataToLocalStorage = (newData: JustificationData[]) => {
+    localStorage.setItem('dataList', JSON.stringify(newData));
+  };
 
   const handlePrintSingle = async (data: JustificationData) => {
     const modelPDFBytes = await fetch('/modelo.pdf').then((res) => res.arrayBuffer());
@@ -85,26 +110,17 @@ export default function Home() {
     }, 100);
   };
 
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      patientName: '',
-      medicalRecord: '',
-      type: 'Eletivo',
-      surgery: '',
-      clinicalData: '',
-      justification: '',
-    },
-  });
-
   const onSubmit = (values: any) => {
     setPdfUrl(null); // Reset the PDF download link
+    let updatedDataList;
     if (editingId) {
-      setDataList((prev) => prev.map((item) => (item.id === editingId ? { ...values, id: editingId } : item)));
+      updatedDataList = dataList.map((item) => (item.id === editingId ? { ...values, id: editingId } : item));
       setEditingId(null);
     } else {
-      setDataList((prev) => [...prev, { ...values, id: Date.now().toString() }]);
+      updatedDataList = [...dataList, { ...values, id: Date.now().toString() }];
     }
+    setDataList(updatedDataList);
+    saveDataToLocalStorage(updatedDataList);
     form.reset(); // Reset the form after submission
     setProgress(0);
   };
@@ -123,7 +139,16 @@ export default function Home() {
   };
 
   const handleDelete = (id: string) => {
-    setDataList((prev) => prev.filter((item) => item.id !== id));
+    const updatedDataList = dataList.filter((item) => item.id !== id);
+    setDataList(updatedDataList);
+    saveDataToLocalStorage(updatedDataList);
+  };
+
+  const handleClearAll = () => {
+    setDataList([]);
+    localStorage.removeItem('dataList'); // Clear data from localStorage
+    setPdfUrl(null);
+    setClearDialogOpen(false); // Close the dialog after clearing data
   };
 
   return (
@@ -234,7 +259,22 @@ export default function Home() {
                   )}
                 />
               </CardContent>
-              <CardFooter className="justify-end">
+              <CardFooter className="flex justify-end space-x-2">
+                <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Limpar Tudo</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirmar limpeza</AlertDialogTitle>
+                      <AlertDialogDescription>Tem certeza de que deseja limpar todos os dados?</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleClearAll}>Confirmar</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <Button type="submit">{editingId ? 'Atualizar' : 'Enviar'}</Button>
               </CardFooter>
             </form>
@@ -257,9 +297,9 @@ export default function Home() {
 
           {progress === 100 && pdfUrl ? (
             <div className="flex justify-center visible">
-              <Link href={pdfUrl} target="_blank" rel="noopener noreferrer">
+              <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
                 <Button className="w-full sm:w-auto">Baixar PDF</Button>
-              </Link>
+              </a>
             </div>
           ) : (
             <div className="flex justify-center invisible">
