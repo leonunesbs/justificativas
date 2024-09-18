@@ -326,7 +326,7 @@ export default function Home() {
             ))}
           </div>
           {!(dataList.length === 0) && (
-            <div className="flex items-center py-2">
+            <div className="flex flex-col items-center py-2 sm:flex-row space-y-2 sm:space-y-0">
               <div className="flex justify-center">
                 <Button onClick={handlePrintAll} disabled={loading} className="w-full sm:w-auto">
                   {loading ? 'Gerando PDF...' : 'Imprimir Tudo'}
