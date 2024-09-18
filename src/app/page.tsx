@@ -157,7 +157,7 @@ export default function Home() {
       <Separator className="mt-4" />
       <div className="py-12 px-4 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-screen-xl mx-auto">
         <div>
-          <Card>
+          <Card className="w-full">
             <CardHeader>
               <CardTitle>Justificativas de Cirurgias</CardTitle>
             </CardHeader>
