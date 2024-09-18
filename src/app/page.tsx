@@ -155,9 +155,9 @@ export default function Home() {
     <div>
       <h1 className="mt-12 scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl text-center">JustOFT</h1>
       <Separator className="mt-4" />
-      <div className="py-12 px-4 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-screen-xl mx-auto">
-        <div>
-          <Card className="w-full">
+      <div className="py-12 px-4 grid grid-cols-1 sm:grid-cols-3 space-y-4 sm:space-y-0 space-x-0 sm:space-x-4 max-w-screen-xl mx-auto">
+        <div className="">
+          <Card className="">
             <CardHeader>
               <CardTitle>Justificativas de Cirurgias</CardTitle>
             </CardHeader>
@@ -270,31 +270,6 @@ export default function Home() {
           </Card>
         </div>
         <div className="space-y-2 col-span-2">
-          <div className="flex items-center">
-            <div className="flex justify-center">
-              <Button onClick={handlePrintAll} disabled={dataList.length === 0 || loading} className="w-full sm:w-auto">
-                {loading ? 'Gerando PDF...' : 'Imprimir Tudo'}
-              </Button>
-            </div>
-
-            {progress > 0 && (
-              <div className="w-full px-10">
-                <Progress value={progress} />
-              </div>
-            )}
-
-            {progress === 100 && pdfUrl ? (
-              <div className="flex justify-center visible">
-                <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
-                  <Button className="w-full sm:w-auto">Baixar PDF</Button>
-                </a>
-              </div>
-            ) : (
-              <div className="flex justify-center invisible">
-                <Button className="w-full sm:w-auto">Baixar PDF</Button>
-              </div>
-            )}
-          </div>
           <div>
             {dataList.map((item) => (
               <Card key={item.id}>
@@ -350,6 +325,33 @@ export default function Home() {
               </Card>
             ))}
           </div>
+          {!(dataList.length === 0) && (
+            <div className="flex items-center py-2">
+              <div className="flex justify-center">
+                <Button onClick={handlePrintAll} disabled={loading} className="w-full sm:w-auto">
+                  {loading ? 'Gerando PDF...' : 'Imprimir Tudo'}
+                </Button>
+              </div>
+
+              {progress > 0 && (
+                <div className="w-full px-10">
+                  <Progress value={progress} />
+                </div>
+              )}
+
+              {progress === 100 && pdfUrl ? (
+                <div className="flex justify-center visible">
+                  <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                    <Button className="w-full sm:w-auto">Baixar PDF</Button>
+                  </a>
+                </div>
+              ) : (
+                <div className="flex justify-center invisible">
+                  <Button className="w-full sm:w-auto">Baixar PDF</Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
