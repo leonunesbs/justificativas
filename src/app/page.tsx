@@ -2,11 +2,13 @@
 
 import { UUID } from 'crypto';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { Alert, AlertDescription } from '@/components/ui/alert'; // Novo import
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { createPdfFromData, createPdfUrl, fillPdfTemplateWithDataForPage } from '@/lib/utils';
 
 const formSchema = z.object({
@@ -55,6 +58,7 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null); // Novo estado para gerenciar alertas
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -79,6 +83,43 @@ export default function Home() {
   const saveDataToLocalStorage = (newData: JustificationData[]) => {
     localStorage.setItem('dataList', JSON.stringify(newData));
   };
+
+  // Export data as JSON file
+  const handleExport = () => {
+    const dataStr = JSON.stringify(dataList, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dataList.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Import data from JSON file
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedData = JSON.parse(e.target?.result as string);
+          if (Array.isArray(importedData)) {
+            setDataList(importedData);
+            saveDataToLocalStorage(importedData);
+            setAlertMessage('Dados importados com sucesso.'); // Exibe mensagem de sucesso
+          } else {
+            setAlertMessage('Formato de arquivo inválido.'); // Exibe mensagem de erro
+          }
+        } catch (error) {
+          setAlertMessage('Erro ao importar o arquivo. Verifique o formato do arquivo.'); // Exibe mensagem de erro
+          console.log(error);
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
   const router = useRouter();
 
   const handlePrintSingle = async (data: JustificationData) => {
@@ -97,7 +138,6 @@ export default function Home() {
     const url = createPdfUrl(pdfBytes);
     setPdfUrl(url);
 
-    // Progress bar with decelerating speed
     let currentProgress = 0;
     const interval = setInterval(() => {
       currentProgress += Math.max(1, (100 - currentProgress) * 0.25); // Decelerating progress
@@ -112,6 +152,7 @@ export default function Home() {
 
   const onSubmit = (values: any) => {
     setPdfUrl(null); // Reset the PDF download link
+    setAlertMessage(null);
     let updatedDataList;
     if (editingId) {
       updatedDataList = dataList.map((item) => (item.id === editingId ? { ...values, id: editingId } : item));
@@ -121,6 +162,7 @@ export default function Home() {
     }
     setDataList(updatedDataList);
     saveDataToLocalStorage(updatedDataList);
+    form.setFocus('medicalRecord');
     form.reset(); // Reset the form after submission
     setProgress(0);
   };
@@ -149,6 +191,7 @@ export default function Home() {
     setPdfUrl(null);
     setClearDialogOpen(false); // Close the dialog after clearing data
     setProgress(0);
+    setAlertMessage(null);
   };
 
   return (
@@ -164,7 +207,6 @@ export default function Home() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)}>
                 <CardContent className="space-y-2">
-                  {/* Tipo */}
                   <FormField
                     control={form.control}
                     name="type"
@@ -221,7 +263,7 @@ export default function Home() {
                       <FormItem>
                         <FormLabel>Justificativa</FormLabel>
                         <FormControl>
-                          <textarea
+                          <Textarea
                             {...field}
                             className="border p-2 rounded w-full"
                             placeholder="Digite a justificativa"
@@ -270,6 +312,12 @@ export default function Home() {
           </Card>
         </div>
         <div className="space-y-2 col-span-2">
+          {alertMessage && (
+            <Alert variant="default">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{alertMessage}</AlertDescription>
+            </Alert>
+          )}
           <div>
             {dataList.map((item) => (
               <Card key={item.id}>
@@ -325,6 +373,19 @@ export default function Home() {
               </Card>
             ))}
           </div>
+
+          {/* Export and Import buttons */}
+          <div className="flex gap-2">
+            <Button onClick={handleExport}>Exportar Dados</Button>
+            <label
+              htmlFor="importFile"
+              className="bg-primary text-primary-foreground shadow hover:bg-primary/90 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2"
+            >
+              Importar Dados
+            </label>
+            <Input type="file" id="importFile" accept=".json" onChange={handleImport} className="hidden" />
+          </div>
+
           {!(dataList.length === 0) && (
             <div className="flex flex-col items-center py-2 sm:flex-row space-y-2 sm:space-y-0">
               <div className="flex justify-center">
