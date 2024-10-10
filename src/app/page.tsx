@@ -2,6 +2,7 @@
 
 import { UUID } from 'crypto';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { DownloadIcon, UploadIcon } from '@radix-ui/react-icons';
 import { AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -199,10 +200,24 @@ export default function Home() {
       <h1 className="mt-12 scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl text-center">JustOFT</h1>
       <Separator className="mt-4" />
       <div className="py-12 px-4 grid grid-cols-1 sm:grid-cols-3 space-y-4 sm:space-y-0 space-x-0 sm:space-x-4 max-w-screen-xl mx-auto">
-        <div className="">
+        <div className=" space-y-4">
           <Card className="">
             <CardHeader>
               <CardTitle>Justificativas de Cirurgias</CardTitle>
+              <div className="flex flex-row ">
+                <div>
+                  <label
+                    htmlFor="importFile"
+                    className="bg-primary text-primary-foreground shadow hover:bg-primary/90 inline-flex items-center justify-center whitespace-nowrap rounded-md rounded-r-none text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2"
+                  >
+                    <UploadIcon className="size-5 " />
+                  </label>
+                  <Input type="file" id="importFile" accept=".json" onChange={handleImport} className="hidden" />
+                </div>
+                <Button onClick={handleExport} className="rounded-l-none">
+                  <DownloadIcon className="size-5" />
+                </Button>
+              </div>
             </CardHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -310,6 +325,9 @@ export default function Home() {
               </form>
             </Form>
           </Card>
+          <Card>
+            <CardContent className="justify-center flex  items-center"></CardContent>
+          </Card>
         </div>
         <div className="space-y-2 col-span-2">
           {alertMessage && (
@@ -372,18 +390,6 @@ export default function Home() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-
-          {/* Export and Import buttons */}
-          <div className="flex gap-2">
-            <Button onClick={handleExport}>Exportar Dados</Button>
-            <label
-              htmlFor="importFile"
-              className="bg-primary text-primary-foreground shadow hover:bg-primary/90 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2"
-            >
-              Importar Dados
-            </label>
-            <Input type="file" id="importFile" accept=".json" onChange={handleImport} className="hidden" />
           </div>
 
           {!(dataList.length === 0) && (
