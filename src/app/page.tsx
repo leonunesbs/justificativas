@@ -527,6 +527,15 @@ export default function Home() {
   };
 
   const onSubmitDoctorInfo = (values: any) => {
+    if (values.doctorName === '' && values.crm === '') {
+      // Limpar os dados do médico
+      setDoctorInfo({ doctorName: '', crm: '' });
+      localStorage.removeItem('doctorInfo');
+      formDoctor.reset();
+      setDoctorFormAlert('Informações do médico removidas.');
+      setTimeout(() => setDoctorFormAlert(null), 3000);
+      return;
+    }
     setDoctorInfo(values);
     localStorage.setItem('doctorInfo', JSON.stringify(values));
     setDoctorFormAlert('Informações do médico salvas com sucesso.');
