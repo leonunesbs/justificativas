@@ -17,8 +17,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Função para quebrar o texto em múltiplas linhas respeitando a largura da caixa de texto
-function splitTextIntoLines(text: string, font: any, fontSize: number, maxWidth: number) {
+// Função auxiliar para dividir o texto em linhas que caibam na largura máxima
+
+// Função auxiliar para dividir o texto em linhas que caibam na largura máxima
+function splitTextIntoLines(text: string, font: any, fontSize: number, maxWidth: number): string[] {
   const words = text.split(' ');
   const lines: string[] = [];
   let currentLine = '';
@@ -26,8 +28,7 @@ function splitTextIntoLines(text: string, font: any, fontSize: number, maxWidth:
   words.forEach((word) => {
     const lineWithWord = currentLine ? `${currentLine} ${word}` : word;
     const lineWidth = font.widthOfTextAtSize(lineWithWord, fontSize);
-
-    if (lineWidth <= maxWidth) {
+    if (lineWidth < maxWidth) {
       currentLine = lineWithWord;
     } else {
       lines.push(currentLine);
@@ -43,8 +44,9 @@ function splitTextIntoLines(text: string, font: any, fontSize: number, maxWidth:
 }
 
 export async function fillPdfTemplateWithDataForPage(
-  data: FormData, // Agora usando o tipo FormData
-  modelPDFBytes: ArrayBuffer
+  data: any,
+  modelPDFBytes: ArrayBuffer,
+  doctorInfo?: { doctorName?: string; crm?: string } // Tornamos doctorInfo opcional e seus campos também
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(modelPDFBytes);
   const page = pdfDoc.getPage(0);
@@ -54,7 +56,7 @@ export async function fillPdfTemplateWithDataForPage(
   page.setFontSize(fontSize);
   page.setFont(timesRomanFont);
 
-  // Create the content with two paragraphs
+  // Criar o conteúdo com dois parágrafos
   const introText = `Solicito a realização de procedimento em caráter ${data.type.toUpperCase()} que beneficiaria o paciente ${data.patientName.toUpperCase()} (prontuário ${data.medicalRecord}), acompanhado no Setor de Oftalmologia deste hospital. A solicitação se justifica pela impossibilidade de convocar pacientes em posições à frente na fila de espera.`;
 
   // Alteração na justificativa conforme solicitado
@@ -94,10 +96,35 @@ export async function fillPdfTemplateWithDataForPage(
   const signatureX = (pageWidth - signatureLineWidth) / 2;
   page.drawText(signatureLine, { x: signatureX, y: textY });
 
-  // Centralizar a data abaixo da linha
-  textY -= 20; // Espaçamento entre linha e data
-  const dateText = `${new Date().toLocaleDateString('utc', {
-    dateStyle: 'long',
+  // Variável para controlar o espaçamento vertical
+  let spacingAfterSignature = 20;
+
+  // Verificar se o nome do médico foi fornecido
+  if (doctorInfo?.doctorName) {
+    textY -= spacingAfterSignature; // Espaçamento entre linha de assinatura e nome do médico
+    const doctorNameText = doctorInfo.doctorName.toUpperCase();
+    const doctorNameWidth = timesRomanFont.widthOfTextAtSize(doctorNameText, fontSize);
+    const doctorNameX = (pageWidth - doctorNameWidth) / 2;
+    page.drawText(doctorNameText, { x: doctorNameX, y: textY });
+    spacingAfterSignature = 20; // Atualiza o espaçamento para o próximo elemento
+  }
+
+  // Verificar se o CRM foi fornecido
+  if (doctorInfo?.crm) {
+    textY -= spacingAfterSignature; // Espaçamento entre nome do médico e CRM
+    const crmText = `CRM: ${doctorInfo.crm.toUpperCase()}`;
+    const crmTextWidth = timesRomanFont.widthOfTextAtSize(crmText, fontSize);
+    const crmX = (pageWidth - crmTextWidth) / 2;
+    page.drawText(crmText, { x: crmX, y: textY });
+    spacingAfterSignature = 40; // Atualiza o espaçamento para o próximo elemento
+  }
+
+  // Centralizar a data abaixo do último elemento adicionado
+  textY -= spacingAfterSignature; // Espaçamento entre o último elemento e a data
+  const dateText = `${new Date().toLocaleDateString('pt-BR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
   })}`;
   const dateTextWidth = timesRomanFont.widthOfTextAtSize(dateText, fontSize);
   const dateX = (pageWidth - dateTextWidth) / 2;
@@ -114,13 +141,14 @@ export async function fillPdfTemplateWithDataForPage(
 }
 
 export async function createPdfFromData(
-  processedData: FormData[], // Agora usando o tipo FormData para a lista de dados
-  modelPDFBytes: ArrayBuffer
+  processedData: FormData[],
+  modelPDFBytes: ArrayBuffer,
+  doctorInfo: { doctorName: string; crm: string }
 ): Promise<PDFDocument> {
   const pdfDoc = await PDFDocument.create();
 
   for (const data of processedData) {
-    const newPdfBytes = await fillPdfTemplateWithDataForPage(data, modelPDFBytes);
+    const newPdfBytes = await fillPdfTemplateWithDataForPage(data, modelPDFBytes, doctorInfo);
     const newPdfDoc = await PDFDocument.load(newPdfBytes);
     const [copiedPage] = await pdfDoc.copyPages(newPdfDoc, [0]);
     pdfDoc.addPage(copiedPage);

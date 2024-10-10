@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Alert, AlertDescription } from '@/components/ui/alert'; // Novo import
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,13 +34,31 @@ import { Textarea } from '@/components/ui/textarea';
 import { createPdfFromData, createPdfUrl, fillPdfTemplateWithDataForPage } from '@/lib/utils';
 
 const formSchema = z.object({
-  patientName: z.string().min(1, 'Nome do paciente é obrigatório.').toUpperCase(),
+  patientName: z
+    .string()
+    .min(1, 'Nome do paciente é obrigatório.')
+    .transform((value) => value.toUpperCase()),
   medicalRecord: z.string().min(1, 'Número do prontuário é obrigatório.'),
   type: z.enum(['Urgente', 'Eletivo'], {
     errorMap: () => ({ message: "Por favor, selecione 'Urgente' ou 'Eletivo'." }),
   }),
-  surgery: z.string().min(1, 'Cirurgia proposta é obrigatória.').toUpperCase(),
-  justification: z.string().min(1, 'Justificativa é obrigatória.').toUpperCase(),
+  surgery: z
+    .string()
+    .min(1, 'Cirurgia proposta é obrigatória.')
+    .transform((value) => value.toUpperCase()),
+  justification: z
+    .string()
+    .min(1, 'Justificativa é obrigatória.')
+    .transform((value) => value.toUpperCase()),
+});
+
+// Esquema de validação atualizado para o formulário do médico
+const doctorFormSchema = z.object({
+  doctorName: z
+    .string()
+    .optional()
+    .transform((value) => value?.toUpperCase() || ''),
+  crm: z.string().optional(),
 });
 
 type JustificationData = {
@@ -59,7 +77,10 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
-  const [alertMessage, setAlertMessage] = useState<string | null>(null); // Novo estado para gerenciar alertas
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
+  // Estado para armazenar as informações do médico
+  const [doctorInfo, setDoctorInfo] = useState<{ doctorName: string; crm: string }>({ doctorName: '', crm: '' });
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -72,20 +93,33 @@ export default function Home() {
     },
   });
 
-  // Load from localStorage on component mount
+  // Formulário para as informações do médico
+  const formDoctor = useForm({
+    resolver: zodResolver(doctorFormSchema),
+    defaultValues: doctorInfo,
+  });
+
+  // Carrega dados do localStorage ao montar o componente
   useEffect(() => {
     const storedData = localStorage.getItem('dataList');
     if (storedData) {
       setDataList(JSON.parse(storedData));
     }
-  }, []);
 
-  // Save to localStorage after specific actions
+    const storedDoctorInfo = localStorage.getItem('doctorInfo');
+    if (storedDoctorInfo) {
+      const parsedDoctorInfo = JSON.parse(storedDoctorInfo);
+      setDoctorInfo(parsedDoctorInfo);
+      formDoctor.reset(parsedDoctorInfo); // Atualiza os valores do formulário do médico
+    }
+  }, [formDoctor]);
+
+  // Salva dados no localStorage após ações específicas
   const saveDataToLocalStorage = (newData: JustificationData[]) => {
     localStorage.setItem('dataList', JSON.stringify(newData));
   };
 
-  // Export data as JSON file
+  // Exporta dados como arquivo JSON
   const handleExport = () => {
     const dataStr = JSON.stringify(dataList, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -97,7 +131,7 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
-  // Import data from JSON file
+  // Importa dados de arquivo JSON
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -108,12 +142,12 @@ export default function Home() {
           if (Array.isArray(importedData)) {
             setDataList(importedData);
             saveDataToLocalStorage(importedData);
-            setAlertMessage('Dados importados com sucesso.'); // Exibe mensagem de sucesso
+            setAlertMessage('Dados importados com sucesso.');
           } else {
-            setAlertMessage('Formato de arquivo inválido.'); // Exibe mensagem de erro
+            setAlertMessage('Formato de arquivo inválido.');
           }
         } catch (error) {
-          setAlertMessage('Erro ao importar o arquivo. Verifique o formato do arquivo.'); // Exibe mensagem de erro
+          setAlertMessage('Erro ao importar o arquivo. Verifique o formato do arquivo.');
           console.log(error);
         }
       };
@@ -123,25 +157,27 @@ export default function Home() {
 
   const router = useRouter();
 
+  // Modifique a função para incluir doctorInfo opcionalmente
   const handlePrintSingle = async (data: JustificationData) => {
     const modelPDFBytes = await fetch('/modelo.pdf').then((res) => res.arrayBuffer());
-    const pdfBytes = await fillPdfTemplateWithDataForPage(data, modelPDFBytes);
+    const pdfBytes = await fillPdfTemplateWithDataForPage(data, modelPDFBytes, doctorInfo); // Passa doctorInfo
     const url = createPdfUrl(pdfBytes);
     router.push(url);
   };
 
+  // Modifique a função para incluir doctorInfo opcionalmente
   const handlePrintAll = async () => {
     setLoading(true);
     setProgress(0);
     const modelPDFBytes = await fetch('/modelo.pdf').then((res) => res.arrayBuffer());
-    const pdfDoc = await createPdfFromData(dataList, modelPDFBytes);
+    const pdfDoc = await createPdfFromData(dataList, modelPDFBytes, doctorInfo); // Passa doctorInfo
     const pdfBytes = await pdfDoc.save();
     const url = createPdfUrl(pdfBytes);
     setPdfUrl(url);
 
     let currentProgress = 0;
     const interval = setInterval(() => {
-      currentProgress += Math.max(1, (100 - currentProgress) * 0.25); // Decelerating progress
+      currentProgress += Math.max(1, (100 - currentProgress) * 0.25);
       setProgress(currentProgress);
       if (currentProgress >= 100) {
         clearInterval(interval);
@@ -152,7 +188,7 @@ export default function Home() {
   };
 
   const onSubmit = (values: any) => {
-    setPdfUrl(null); // Reset the PDF download link
+    setPdfUrl(null);
     setAlertMessage(null);
     let updatedDataList;
     if (editingId) {
@@ -164,8 +200,17 @@ export default function Home() {
     setDataList(updatedDataList);
     saveDataToLocalStorage(updatedDataList);
     form.setFocus('medicalRecord');
-    form.reset(); // Reset the form after submission
+    form.reset();
     setProgress(0);
+  };
+
+  const onSubmitDoctorInfo = (values: any) => {
+    setDoctorInfo({
+      doctorName: values.doctorName || '',
+      crm: values.crm || '',
+    });
+    localStorage.setItem('doctorInfo', JSON.stringify(values));
+    setAlertMessage('Informações do médico salvas com sucesso.');
   };
 
   const handleEdit = (id: string) => {
@@ -188,11 +233,13 @@ export default function Home() {
 
   const handleClearAll = () => {
     setDataList([]);
-    localStorage.removeItem('dataList'); // Clear data from localStorage
+    localStorage.clear();
     setPdfUrl(null);
-    setClearDialogOpen(false); // Close the dialog after clearing data
+    setClearDialogOpen(false); // Fecha o diálogo após limpar os dados
     setProgress(0);
     setAlertMessage(null);
+    form.reset();
+    formDoctor.reset();
   };
 
   return (
@@ -200,8 +247,9 @@ export default function Home() {
       <h1 className="mt-12 scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl text-center">JustOFT</h1>
       <Separator className="mt-4" />
       <div className="py-12 px-4 grid grid-cols-1 sm:grid-cols-3 space-y-4 sm:space-y-0 space-x-0 sm:space-x-4 lg:space-x-8 max-w-screen-xl mx-auto">
-        <div className=" space-y-4">
-          <Card className="">
+        <div className="space-y-4">
+          {/* Formulário das justificativas */}
+          <Card>
             <CardHeader>
               <CardTitle>Justificativas de Cirurgias</CardTitle>
               <div className="flex flex-row ">
@@ -325,7 +373,50 @@ export default function Home() {
               </form>
             </Form>
           </Card>
+
+          {/* Formulário para as informações do médico */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações do Médico (Opcional)</CardTitle>
+            </CardHeader>
+            <Form {...formDoctor}>
+              <form onSubmit={formDoctor.handleSubmit(onSubmitDoctorInfo)}>
+                <CardContent className="space-y-2">
+                  <FormField
+                    control={formDoctor.control}
+                    name="doctorName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Médico</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Digite o nome do médico (opcional)" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={formDoctor.control}
+                    name="crm"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CRM</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Digite o CRM (opcional)" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+                <CardFooter className="flex justify-end space-x-2">
+                  <Button type="submit">Salvar Informações</Button>
+                </CardFooter>
+              </form>
+            </Form>
+          </Card>
         </div>
+
         <div className="space-y-2 col-span-2">
           {alertMessage && (
             <Alert variant="default">
