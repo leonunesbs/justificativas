@@ -232,14 +232,14 @@ export default function Home() {
   };
 
   const handleClearAll = () => {
-    setDataList([]);
+    form.reset();
+    formDoctor.reset();
     localStorage.clear();
+    setDataList([]);
     setPdfUrl(null);
     setClearDialogOpen(false); // Fecha o diálogo após limpar os dados
     setProgress(0);
     setAlertMessage(null);
-    form.reset();
-    formDoctor.reset();
   };
 
   return (
