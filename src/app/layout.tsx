@@ -1,5 +1,7 @@
 import '@/styles/globals.css';
 
+import Link from 'next/link';
+
 export const metadata = {
   title: 'JustOFT',
   description: 'Oftalmologia - HGF',
@@ -8,7 +10,17 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-br">
-      <body>{children}</body>
+      <body>
+        {children}
+        <footer className="flex">
+          <span className="bg-primary text-primary-foreground w-full text-center text-xs py-1">
+            Coded with ❤️ by{' '}
+            <Link href={'https://github.com/leonunesbs'} className="link no-underline  font-bold" target="_blank">
+              @leonunesbs
+            </Link>
+          </span>
+        </footer>
+      </body>
     </html>
   );
 }

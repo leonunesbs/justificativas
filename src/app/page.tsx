@@ -196,7 +196,7 @@ export default function Home() {
   };
 
   return (
-    <div>
+    <main>
       <h1 className="mt-12 scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl text-center">JustOFT</h1>
       <Separator className="mt-4" />
       <div className="py-12 px-4 grid grid-cols-1 sm:grid-cols-3 space-y-4 sm:space-y-0 space-x-0 sm:space-x-4 max-w-screen-xl mx-auto">
@@ -325,9 +325,6 @@ export default function Home() {
               </form>
             </Form>
           </Card>
-          <Card>
-            <CardContent className="justify-center flex  items-center"></CardContent>
-          </Card>
         </div>
         <div className="space-y-2 col-span-2">
           {alertMessage && (
@@ -421,6 +418,6 @@ export default function Home() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }
