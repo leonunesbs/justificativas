@@ -199,7 +199,7 @@ export default function Home() {
     <main>
       <h1 className="mt-12 scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl text-center">JustOFT</h1>
       <Separator className="mt-4" />
-      <div className="py-12 px-4 grid grid-cols-1 sm:grid-cols-3 space-y-4 sm:space-y-0 space-x-0 sm:space-x-4 max-w-screen-xl mx-auto">
+      <div className="py-12 px-4 grid grid-cols-1 sm:grid-cols-3 space-y-4 sm:space-y-0 space-x-0 sm:space-x-4 lg:space-x-8 max-w-screen-xl mx-auto">
         <div className=" space-y-4">
           <Card className="">
             <CardHeader>
@@ -333,7 +333,7 @@ export default function Home() {
               <AlertDescription>{alertMessage}</AlertDescription>
             </Alert>
           )}
-          <div>
+          <div className="space-y-4 lg:space-y-8">
             {dataList.map((item) => (
               <Card key={item.id}>
                 <CardHeader>
