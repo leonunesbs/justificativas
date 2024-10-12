@@ -2,6 +2,8 @@ import '@/styles/globals.css';
 
 import Link from 'next/link';
 
+import { Toaster } from '@/components/ui/toaster';
+
 export const metadata = {
   title: 'JustOFT',
   description: 'Oftalmologia - HGF',
@@ -20,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
           </span>
         </footer>
+        <Toaster />
       </body>
     </html>
   );

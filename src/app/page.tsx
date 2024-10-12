@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DownloadIcon, UploadIcon } from '@radix-ui/react-icons';
+import { DownloadIcon, TrashIcon, UploadIcon } from '@radix-ui/react-icons';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -28,6 +28,7 @@ import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
 import { createPdfFromData, createPdfUrl, fillPdfTemplateWithDataForPage } from '@/lib/utils';
 
 const formSchema = z.object({
@@ -49,7 +50,6 @@ const formSchema = z.object({
     .transform((value) => value.toUpperCase()),
 });
 
-// Tornar os campos opcionais no esquema do formulário do médico
 const doctorFormSchema = z.object({
   doctorName: z
     .string()
@@ -58,7 +58,6 @@ const doctorFormSchema = z.object({
   crm: z.string().optional(),
 });
 
-// Esquema para validar os dados de justificativa
 const justificationDataSchema = z.object({
   id: z.string(),
   patientName: z.string(),
@@ -68,15 +67,17 @@ const justificationDataSchema = z.object({
   justification: z.string(),
 });
 
-function JustificationList({ dataList, handleEdit, handleDelete, handlePrintSingle, listAlert }: any) {
+type JustificationData = z.infer<typeof justificationDataSchema>;
+
+function JustificationList({
+  dataList,
+  handleEdit,
+  handleDelete,
+  handlePrintSingle,
+  handleClearAllJustifications,
+}: any) {
   return (
     <div className="space-y-4">
-      {/* Notificação para a lista */}
-      {listAlert && (
-        <div className="text-sm text-gray-600">
-          <p>{listAlert}</p>
-        </div>
-      )}
       {dataList.map((item: JustificationData) => (
         <Card key={item.id}>
           <CardHeader>
@@ -123,6 +124,31 @@ function JustificationList({ dataList, handleEdit, handleDelete, handlePrintSing
           </CardFooter>
         </Card>
       ))}
+
+      {dataList.length > 0 && (
+        <div className="flex justify-end mt-4">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" className="text-red-600 hover:bg-red-50" size="sm">
+                <TrashIcon className="mr-2 h-4 w-4" />
+                Limpar Todas as Justificativas
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar exclusão de todas as justificativas</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza de que deseja excluir **todas** as justificativas salvas? Essa ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearAllJustifications}>Confirmar</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
     </div>
   );
 }
@@ -146,15 +172,14 @@ function ActionButtons({ loading, progress, pdfUrl, handlePrintAll }: any) {
     </div>
   );
 }
+
 function JustificationForm({
   form,
   onSubmit,
   editingId,
   handleExport,
   handleImport,
-  handleClearAll,
-  formAlert,
-  importAlert,
+  handleClearJustificationForm,
 }: any) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   return (
@@ -166,25 +191,12 @@ function JustificationForm({
             <UploadIcon className="mr-2" />
             Importar
           </Button>
-          <Input
-            type="file"
-            ref={fileInputRef}
-            accept=".json"
-            onChange={handleImport}
-            className="hidden"
-            multiple // Permitir múltiplos arquivos
-          />
+          <Input type="file" ref={fileInputRef} accept=".json" onChange={handleImport} className="hidden" multiple />
           <Button onClick={handleExport}>
             <DownloadIcon className="mr-2" />
             Exportar
           </Button>
         </div>
-        {/* Notificação para importação */}
-        {importAlert && (
-          <div className="mt-2 text-sm text-gray-600">
-            <p>{importAlert}</p>
-          </div>
-        )}
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -257,36 +269,18 @@ function JustificationForm({
             />
           </CardContent>
           <CardFooter className="flex justify-between">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">Limpar Tudo</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Confirmar limpeza</AlertDialogTitle>
-                  <AlertDialogDescription>Tem certeza de que deseja limpar todos os dados?</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClearAll}>Confirmar</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button variant="destructive" onClick={handleClearJustificationForm}>
+              Limpar
+            </Button>
             <Button type="submit">{editingId ? 'Atualizar' : 'Adicionar'}</Button>
           </CardFooter>
-          {/* Notificação para o formulário */}
-          {formAlert && (
-            <div className="mt-2 text-sm text-gray-600">
-              <p>{formAlert}</p>
-            </div>
-          )}
         </form>
       </Form>
     </Card>
   );
 }
 
-function DoctorForm({ formDoctor, onSubmitDoctorInfo, doctorFormAlert }: any) {
+function DoctorForm({ formDoctor, onSubmitDoctorInfo, handleClearDoctorForm }: any) {
   return (
     <Card>
       <CardHeader>
@@ -323,12 +317,9 @@ function DoctorForm({ formDoctor, onSubmitDoctorInfo, doctorFormAlert }: any) {
             />
           </CardContent>
           <CardFooter className="flex justify-between items-center">
-            {/* Notificação para o formulário do médico */}
-            {doctorFormAlert && (
-              <div className="text-sm text-gray-600">
-                <p>{doctorFormAlert}</p>
-              </div>
-            )}
+            <Button variant="destructive" onClick={handleClearDoctorForm}>
+              Limpar
+            </Button>
             <Button type="submit">Salvar</Button>
           </CardFooter>
         </form>
@@ -337,19 +328,17 @@ function DoctorForm({ formDoctor, onSubmitDoctorInfo, doctorFormAlert }: any) {
   );
 }
 
-type JustificationData = z.infer<typeof justificationDataSchema>;
-
 export default function Home() {
+  const { toast } = useToast();
   const [dataList, setDataList] = useState<JustificationData[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [doctorInfo, setDoctorInfo] = useState<{ doctorName: string; crm: string }>({ doctorName: '', crm: '' });
-  const [formAlert, setFormAlert] = useState<string | null>(null);
-  const [doctorFormAlert, setDoctorFormAlert] = useState<string | null>(null);
-  const [listAlert, setListAlert] = useState<string | null>(null);
-  const [importAlert, setImportAlert] = useState<string | null>(null);
+  const [doctorInfo, setDoctorInfo] = useState<{ doctorName: string; crm: string }>({
+    doctorName: '',
+    crm: '',
+  });
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -409,7 +398,6 @@ export default function Home() {
           try {
             const importedData = JSON.parse(e.target?.result as string);
             if (Array.isArray(importedData)) {
-              // Validar os dados importados
               const validData = importedData.filter((item) => {
                 try {
                   justificationDataSchema.parse(item);
@@ -420,7 +408,6 @@ export default function Home() {
                 }
               });
 
-              // Verificar duplicatas
               validData.forEach((item) => {
                 const exists = newDataList.some(
                   (existingItem) =>
@@ -442,18 +429,17 @@ export default function Home() {
                 setDataList(newDataList);
                 saveDataToLocalStorage(newDataList);
                 if (duplicatesCount > 0) {
-                  setImportAlert(`Importação concluída. ${duplicatesCount} itens duplicados foram ignorados.`);
+                  toast({ description: `Importação concluída. ${duplicatesCount} itens duplicados foram ignorados.` });
                 } else {
-                  setImportAlert('Dados importados e combinados com sucesso.');
+                  toast({ description: 'Dados importados e combinados com sucesso.' });
                 }
-                setTimeout(() => setImportAlert(null), 3000);
               }
             } else {
-              setImportAlert('Formato de arquivo inválido.');
+              toast({ description: 'Formato de arquivo inválido.' });
             }
           } catch (error) {
-            setImportAlert('Erro ao importar o arquivo. Verifique o formato do arquivo.');
-            console.log(error);
+            console.error(error);
+            toast({ description: 'Erro ao importar o arquivo. Verifique o formato do arquivo.' });
           }
         };
         reader.readAsText(file);
@@ -494,52 +480,53 @@ export default function Home() {
   const onSubmit = (values: any) => {
     setPdfUrl(null);
 
-    // Verificar se o item já existe
     const exists = dataList.some(
       (item) =>
         item.patientName === values.patientName &&
         item.medicalRecord === values.medicalRecord &&
         item.surgery === values.surgery &&
         item.justification === values.justification &&
-        item.type === values.type
+        item.type === values.type &&
+        item.id !== editingId
     );
 
-    if (exists) {
-      setFormAlert('Esta justificativa já foi adicionada.');
+    if (exists && !editingId) {
+      toast({ description: 'Esta justificativa já foi adicionada.' });
     } else {
       let updatedDataList;
       if (editingId) {
         updatedDataList = dataList.map((item) => (item.id === editingId ? { ...values, id: editingId } : item));
         setEditingId(null);
-        setFormAlert('Justificativa atualizada com sucesso.');
+        toast({ description: 'Justificativa atualizada com sucesso.' });
       } else {
         updatedDataList = [...dataList, { ...values, id: Date.now().toString() }];
-        setFormAlert('Justificativa adicionada com sucesso.');
+        toast({ description: 'Justificativa adicionada com sucesso.' });
       }
       setDataList(updatedDataList);
       saveDataToLocalStorage(updatedDataList);
-      form.setFocus('medicalRecord');
-      form.reset();
+
+      form.reset({
+        patientName: '',
+        medicalRecord: '',
+        type: 'Eletivo',
+        surgery: '',
+        justification: '',
+      });
       setProgress(0);
     }
-
-    setTimeout(() => setFormAlert(null), 3000);
   };
 
   const onSubmitDoctorInfo = (values: any) => {
     if (values.doctorName === '' && values.crm === '') {
-      // Limpar os dados do médico
       setDoctorInfo({ doctorName: '', crm: '' });
       localStorage.removeItem('doctorInfo');
       formDoctor.reset();
-      setDoctorFormAlert('Informações do médico removidas.');
-      setTimeout(() => setDoctorFormAlert(null), 3000);
+      toast({ description: 'Informações do médico removidas.' });
       return;
     }
     setDoctorInfo(values);
     localStorage.setItem('doctorInfo', JSON.stringify(values));
-    setDoctorFormAlert('Informações do médico salvas com sucesso.');
-    setTimeout(() => setDoctorFormAlert(null), 3000);
+    toast({ description: 'Informações do médico salvas com sucesso.' });
   };
 
   const handleEdit = (id: string) => {
@@ -554,20 +541,33 @@ export default function Home() {
     const updatedDataList = dataList.filter((item) => item.id !== id);
     setDataList(updatedDataList);
     saveDataToLocalStorage(updatedDataList);
-    setListAlert('Justificativa excluída com sucesso.');
-    setTimeout(() => setListAlert(null), 3000);
+    toast({ description: 'Justificativa excluída com sucesso.' });
   };
 
-  const handleClearAll = () => {
-    form.reset();
-    formDoctor.reset();
+  const handleClearJustificationForm = () => {
+    form.reset({
+      patientName: '',
+      medicalRecord: '',
+      type: 'Eletivo',
+      surgery: '',
+      justification: '',
+    });
+    setEditingId(null);
+    toast({ description: 'Formulário de justificativa limpo.' });
+  };
+
+  const handleClearAllJustifications = () => {
     setDataList([]);
     localStorage.removeItem('dataList');
-    localStorage.clear();
-    setPdfUrl(null);
-    setProgress(0);
-    setListAlert('Todas as justificativas foram removidas.');
-    setTimeout(() => setListAlert(null), 3000);
+    toast({ description: 'Todas as justificativas foram removidas.' });
+  };
+
+  const handleClearDoctorForm = () => {
+    formDoctor.reset({
+      doctorName: '',
+      crm: '',
+    });
+    toast({ description: 'Formulário do médico limpo.' });
   };
 
   return (
@@ -576,40 +576,32 @@ export default function Home() {
       <Separator className="my-4" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Coluna Esquerda */}
         <div className="space-y-6">
-          {/* Formulário de Justificativa */}
           <JustificationForm
             form={form}
             onSubmit={onSubmit}
             editingId={editingId}
             handleExport={handleExport}
             handleImport={handleImport}
-            handleClearAll={handleClearAll}
-            formAlert={formAlert}
-            importAlert={importAlert}
+            handleClearJustificationForm={handleClearJustificationForm}
           />
 
-          {/* Formulário do Médico */}
           <DoctorForm
             formDoctor={formDoctor}
             onSubmitDoctorInfo={onSubmitDoctorInfo}
-            doctorFormAlert={doctorFormAlert}
+            handleClearDoctorForm={handleClearDoctorForm}
           />
         </div>
 
-        {/* Coluna Direita */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Lista de Justificativas */}
           <JustificationList
             dataList={dataList}
             handleEdit={handleEdit}
             handleDelete={handleDelete}
             handlePrintSingle={handlePrintSingle}
-            listAlert={listAlert}
+            handleClearAllJustifications={handleClearAllJustifications} // Passado para JustificationList
           />
 
-          {/* Botões de Ação */}
           {dataList.length > 0 && (
             <ActionButtons loading={loading} progress={progress} pdfUrl={pdfUrl} handlePrintAll={handlePrintAll} />
           )}
