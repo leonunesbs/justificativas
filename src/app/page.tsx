@@ -74,6 +74,7 @@ function JustificationList({
   handleEdit,
   handleDelete,
   handlePrintSingle,
+  handleDuplicate,
   handleClearAllJustifications,
 }: any) {
   return (
@@ -103,6 +104,9 @@ function JustificationList({
             </Button>
             <Button size="sm" onClick={() => handleEdit(item.id)}>
               Editar
+            </Button>
+            <Button size="sm" onClick={() => handleDuplicate(item)}>
+              Duplicar
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -269,7 +273,7 @@ function JustificationForm({
             />
           </CardContent>
           <CardFooter className="flex justify-between">
-            <Button variant="destructive" onClick={handleClearJustificationForm}>
+            <Button type="button" variant="destructive" onClick={handleClearJustificationForm}>
               Limpar
             </Button>
             <Button type="submit">{editingId ? 'Atualizar' : 'Adicionar'}</Button>
@@ -544,6 +548,14 @@ export default function Home() {
     toast({ description: 'Justificativa excluída com sucesso.' });
   };
 
+  const handleDuplicate = (item: JustificationData) => {
+    const newItem = { ...item, id: Date.now().toString() };
+    const updatedDataList = [...dataList, newItem];
+    setDataList(updatedDataList);
+    saveDataToLocalStorage(updatedDataList);
+    toast({ description: 'Justificativa duplicada com sucesso.' });
+  };
+
   const handleClearJustificationForm = () => {
     form.reset({
       patientName: '',
@@ -599,7 +611,8 @@ export default function Home() {
             handleEdit={handleEdit}
             handleDelete={handleDelete}
             handlePrintSingle={handlePrintSingle}
-            handleClearAllJustifications={handleClearAllJustifications} // Passado para JustificationList
+            handleDuplicate={handleDuplicate}
+            handleClearAllJustifications={handleClearAllJustifications}
           />
 
           {dataList.length > 0 && (
