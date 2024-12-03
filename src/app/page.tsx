@@ -321,7 +321,7 @@ function DoctorForm({ formDoctor, onSubmitDoctorInfo, handleClearDoctorForm }: a
             />
           </CardContent>
           <CardFooter className="flex justify-between items-center">
-            <Button variant="destructive" onClick={handleClearDoctorForm}>
+            <Button type="button" variant="destructive" onClick={handleClearDoctorForm}>
               Limpar
             </Button>
             <Button type="submit">Salvar</Button>
