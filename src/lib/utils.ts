@@ -57,7 +57,7 @@ export async function fillPdfTemplateWithDataForPage(
   page.setFont(timesRomanFont);
 
   // Criar o conteúdo com dois parágrafos
-  const introText = `Solicito a realização de procedimento em caráter ${data.type.toUpperCase()} que beneficiaria o paciente ${data.patientName.toUpperCase()} (prontuário ${data.medicalRecord}), acompanhado no Setor de Oftalmologia deste hospital. A solicitação se justifica pela impossibilidade de convocar pacientes em posições à frente na fila de espera.`;
+  const introText = `Solicito a realização de procedimento em caráter ${data.type.toUpperCase()} que beneficiaria o paciente ${data.patientName.toUpperCase()} (prontuário ${data.medicalRecord}), acompanhado no Setor de Oftalmologia deste hospital.`;
 
   // Alteração na justificativa conforme solicitado
   const detailsText = `O paciente tem indicação de ${data.surgery}, justificada por ${data.justification}. A realização do procedimento com brevidade é fundamental para prevenir complicações futuras.`;
