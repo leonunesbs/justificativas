@@ -1,13 +1,17 @@
 {
-  "extends": ["config:base"],
-  "semanticCommits": true,
-  "stabilityDays": 3,
-  "prCreation": "not-pending",
+  "extends": ["config:recommended"],
   "labels": ["type: dependencies"],
+  "minimumReleaseAge": "3 days",
   "packageRules": [
     {
-      "packageNames": ["node"],
+      "matchPackageNames": ["node"],
       "enabled": false
+    },
+    {
+      "matchPackageNames": ["oxfmt", "oxlint", "oxlint-tsgolint"],
+      "groupName": "oxlint packages"
     }
-  ]
+  ],
+  "prCreation": "not-pending",
+  "semanticCommits": "enabled"
 }
