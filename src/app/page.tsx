@@ -596,6 +596,10 @@ function BatchLookupDialog({ open, onOpenChange, running, items, onConfirm }: Ba
   const cods = parseCods(input);
   const done = items.filter((item) => item.status !== 'pending' && item.status !== 'running').length;
   const started = items.length > 0;
+  const okCount = items.filter((item) => item.status === 'ok').length;
+  const dupCount = items.filter((item) => item.status === 'dup').length;
+  const failCount = items.filter((item) => item.status === 'fail').length;
+  const plural = (n: number) => (n === 1 ? '' : 's');
 
   return (
     <Dialog
@@ -633,26 +637,57 @@ function BatchLookupDialog({ open, onOpenChange, running, items, onConfirm }: Ba
           </div>
         ) : (
           <div className="space-y-3">
-            <Progress value={items.length > 0 ? (done / items.length) * 100 : 0} />
-            <p className="text-muted-foreground text-sm">
-              {running ? `Processando ${done}/${items.length}…` : `Concluído: ${done}/${items.length}.`}
-            </p>
-            <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-md border p-3 text-sm">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">{running ? 'Buscando…' : 'Concluído'}</span>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {done}/{items.length}
+                </span>
+              </div>
+              <Progress value={items.length > 0 ? (done / items.length) * 100 : 0} />
+            </div>
+
+            {!running && (
+              <div className="flex flex-wrap gap-1.5">
+                {okCount > 0 && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Check className="size-3" />
+                    {okCount} adicionada{plural(okCount)}
+                  </Badge>
+                )}
+                {dupCount > 0 && (
+                  <Badge variant="outline" className="gap-1">
+                    <Copy className="size-3" />
+                    {dupCount} duplicada{plural(dupCount)}
+                  </Badge>
+                )}
+                {failCount > 0 && (
+                  <Badge variant="destructive" className="gap-1">
+                    <CircleAlert className="size-3" />
+                    {failCount} falha{plural(failCount)}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            <div className="max-h-64 divide-y overflow-y-auto rounded-md border text-sm">
               {items.map((item) => (
-                <div key={item.cod} className="flex items-center gap-2">
+                <div key={item.cod} className="flex items-center gap-2 px-3 py-2">
                   {item.status === 'ok' ? (
-                    <Check className="text-foreground size-3.5 shrink-0" />
+                    <Check className="size-4 shrink-0 text-emerald-600" />
                   ) : item.status === 'fail' ? (
-                    <CircleAlert className="text-destructive size-3.5 shrink-0" />
+                    <CircleAlert className="text-destructive size-4 shrink-0" />
                   ) : item.status === 'dup' ? (
-                    <Copy className="text-muted-foreground size-3.5 shrink-0" />
+                    <Copy className="text-muted-foreground size-4 shrink-0" />
                   ) : item.status === 'running' ? (
-                    <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                    <Loader2 className="size-4 shrink-0 animate-spin" />
                   ) : (
-                    <span className="size-3.5 shrink-0" />
+                    <span className="bg-muted size-4 shrink-0 rounded-full" />
                   )}
-                  <span className="font-mono">{item.cod}</span>
-                  {item.message && <span className="text-muted-foreground truncate">— {item.message}</span>}
+                  <span className="font-mono text-xs tabular-nums shrink-0">{item.cod}</span>
+                  {item.message && (
+                    <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">{item.message}</span>
+                  )}
                 </div>
               ))}
             </div>
