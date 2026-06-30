@@ -1,11 +1,11 @@
 import { clsx } from 'clsx';
+import type { ClassValue } from 'clsx';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
+import type { PDFFont } from 'pdf-lib';
 import { twMerge } from 'tailwind-merge';
 
-import type { ClassValue } from 'clsx';
-
-// Definição dos tipos dos dados do formulário
-type FormData = {
+// Dados de uma justificativa usados para preencher o PDF.
+type JustificationInput = {
   patientName: string;
   medicalRecord: string;
   type: string;
@@ -20,8 +20,10 @@ export function cn(...inputs: ClassValue[]) {
 // Função auxiliar para dividir o texto em linhas que caibam na largura máxima
 
 // Função auxiliar para dividir o texto em linhas que caibam na largura máxima
-function splitTextIntoLines(text: string, font: any, fontSize: number, maxWidth: number): string[] {
-  const words = text.split(' ');
+function splitTextIntoLines(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
+  // As fontes padrão do pdf-lib usam WinAnsi e não codificam quebras de linha/tabs.
+  // Normalizamos qualquer espaço em branco (incluindo \n de textareas) para um único espaço.
+  const words = text.replace(/\s+/g, ' ').trim().split(' ');
   const lines: string[] = [];
   let currentLine = '';
 
@@ -44,9 +46,9 @@ function splitTextIntoLines(text: string, font: any, fontSize: number, maxWidth:
 }
 
 export async function fillPdfTemplateWithDataForPage(
-  data: any,
+  data: JustificationInput,
   modelPDFBytes: ArrayBuffer,
-  doctorInfo?: { doctorName?: string; crm?: string } // Tornamos doctorInfo opcional e seus campos também
+  doctorInfo?: { doctorName?: string; crm?: string }, // doctorInfo e seus campos são opcionais
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(modelPDFBytes);
   const page = pdfDoc.getPage(0);
@@ -57,10 +59,10 @@ export async function fillPdfTemplateWithDataForPage(
   page.setFont(timesRomanFont);
 
   // Criar o conteúdo com dois parágrafos
-  const introText = `Solicito a realização de procedimento em caráter ${data.type.toUpperCase()} que beneficiaria o paciente ${data.patientName.toUpperCase()} (prontuário ${data.medicalRecord}), acompanhado no Setor de Oftalmologia deste hospital.`;
+  const introText = `Solicito a realização de procedimento em caráter ${data.type.toUpperCase()} que beneficiaria o paciente ${data.patientName.toUpperCase()} (FASTMEDIC ${data.medicalRecord}), acompanhado no Setor de Oftalmologia deste hospital.`;
 
   // Alteração na justificativa conforme solicitado
-  const detailsText = `O paciente tem indicação de ${data.surgery}, justificada por ${data.justification}. A realização do procedimento com brevidade é fundamental para prevenir complicações futuras.`;
+  const detailsText = `O paciente tem indicação de ${data.surgery}, justificada por ${data.justification}. A realização do procedimento com brevidade é fundamental para prevenir complicações.`;
 
   // Definir o limite de largura da área de texto
   const maxWidth = 500;
@@ -141,9 +143,9 @@ export async function fillPdfTemplateWithDataForPage(
 }
 
 export async function createPdfFromData(
-  processedData: FormData[],
+  processedData: JustificationInput[],
   modelPDFBytes: ArrayBuffer,
-  doctorInfo: { doctorName: string; crm: string }
+  doctorInfo: { doctorName: string; crm: string },
 ): Promise<PDFDocument> {
   const pdfDoc = await PDFDocument.create();
 
@@ -158,6 +160,7 @@ export async function createPdfFromData(
 }
 
 export function createPdfUrl(pdfBytes: Uint8Array): string {
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  // Copy into a fresh ArrayBuffer-backed view so it satisfies BlobPart (TS 6 narrowed Uint8Array generics).
+  const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
   return window.URL.createObjectURL(blob);
 }
