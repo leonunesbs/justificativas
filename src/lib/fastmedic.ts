@@ -19,9 +19,12 @@ export type FastmedicLookupResult = {
 
 type Solicitacao = {
   CodSolicitacao?: number | string | null;
+  CodSolicitacaoLeito?: number | string | null;
   NomUsuario?: string | null;
   Procedimento?: string | null;
+  HipDiagnostica?: string | null;
   HipoteseDiagnostica?: string | null;
+  DscObservacao?: string | null;
   DscTipoSolicitacao?: string | null;
   DscPrioridade?: string | null;
 };
@@ -59,10 +62,29 @@ export function deduzirTipo(item: Pick<Solicitacao, 'DscTipoSolicitacao' | 'DscP
 export function extrairItens(json: unknown): Solicitacao[] {
   if (Array.isArray(json)) return json as Solicitacao[];
   if (json && typeof json === 'object') {
-    const resultado = (json as { Resultado?: unknown }).Resultado;
+    const obj = json as { Resultado?: unknown; Data?: unknown };
+    const resultado = obj.Resultado ?? obj.Data;
     if (Array.isArray(resultado)) return resultado as Solicitacao[];
   }
   return [];
+}
+
+/** Mapeia um registro já identificado (folha de rosto ou linha do grid). */
+export function mapearRegistro(item: Solicitacao): FastmedicLookupResult | null {
+  const justification = [item.HipDiagnostica, item.HipoteseDiagnostica, item.DscObservacao]
+    .find((value) => value?.trim())
+    ?.trim();
+  const patientName = limparNome(item.NomUsuario);
+  const surgery = limparProcedimento(item.Procedimento);
+  if (!patientName && !surgery && !justification) return null;
+  return {
+    patientName,
+    surgery,
+    // A folha de rosto preserva o texto original em `HipDiagnostica`. O grid
+    // usa `HipoteseDiagnostica` e pode remover pontuação, por isso é fallback.
+    justification: justification ?? '',
+    type: deduzirTipo(item),
+  };
 }
 
 /**
@@ -71,12 +93,14 @@ export function extrairItens(json: unknown): Solicitacao[] {
  */
 export function mapearSolicitacao(json: unknown, cod: string | number): FastmedicLookupResult | null {
   const alvo = String(cod).trim();
-  const item = extrairItens(json).find((it) => String(it.CodSolicitacao ?? '').trim() === alvo);
+  const itens = extrairItens(json);
+  // O filtro enviado se chama `CodSolicitacaoLeito`, mas a linha do grid pode
+  // devolver apenas o id interno `CodSolicitacao`. Se veio exatamente uma
+  // linha, ela já foi filtrada pelo servidor e não deve ser descartada.
+  const item =
+    itens.find(
+      (it) => String(it.CodSolicitacaoLeito ?? '').trim() === alvo || String(it.CodSolicitacao ?? '').trim() === alvo,
+    ) ?? (itens.length === 1 ? itens[0] : undefined);
   if (!item) return null;
-  return {
-    patientName: limparNome(item.NomUsuario),
-    surgery: limparProcedimento(item.Procedimento),
-    justification: (item.HipoteseDiagnostica ?? '').trim(),
-    type: deduzirTipo(item),
-  };
+  return mapearRegistro(item);
 }

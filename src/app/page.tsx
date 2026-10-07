@@ -684,7 +684,7 @@ function BatchLookupDialog({ open, onOpenChange, running, items, onConfirm }: Ba
                   ) : (
                     <span className="bg-muted size-4 shrink-0 rounded-full" />
                   )}
-                  <span className="font-mono text-xs tabular-nums shrink-0">{item.cod}</span>
+                  <span className="shrink-0 font-mono text-xs tabular-nums">{item.cod}</span>
                   {item.message && (
                     <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">{item.message}</span>
                   )}
@@ -1076,39 +1076,70 @@ export default function Home() {
       const data = await response.json().catch(() => null);
       return { error: data?.error ?? 'Não foi possível buscar no FastMedic.' };
     }
+    if (!response.headers.get('content-type')?.includes('application/x-ndjson')) {
+      await response.body.cancel().catch(() => undefined);
+      return { error: 'O servidor devolveu uma resposta inesperada. Tente novamente.' };
+    }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     let result: LookupResult | null = null;
     let errorMessage: string | null = null;
+    let responseRequestId: string | null = null;
+    let terminalEvents = 0;
+    let protocolError = false;
 
     const handleEvent = (line: string) => {
       const trimmed = line.trim();
       if (!trimmed) return;
-      let event: { type?: string; message?: string; result?: LookupResult | null };
+      let event: { type?: string; message?: string; result?: LookupResult | null; requestId?: string };
       try {
         event = JSON.parse(trimmed);
       } catch {
+        protocolError = true;
         return;
       }
-      if (event.type === 'log' && event.message) onStep?.(event.message);
-      else if (event.type === 'result') result = event.result ?? null;
-      else if (event.type === 'error') errorMessage = event.message ?? 'Falha ao consultar o FastMedic.';
+      if (event.requestId) {
+        if (responseRequestId && responseRequestId !== event.requestId) protocolError = true;
+        responseRequestId = event.requestId;
+      }
+      if (event.type === 'log' && event.message && terminalEvents === 0) {
+        onStep?.(event.message);
+      } else if (event.type === 'result' && event.result && terminalEvents === 0) {
+        terminalEvents += 1;
+        result = event.result;
+      } else if (event.type === 'error' && terminalEvents === 0) {
+        terminalEvents += 1;
+        errorMessage = event.message ?? 'Falha ao consultar o FastMedic.';
+      } else {
+        protocolError = true;
+      }
     };
 
-    // Lê o NDJSON e reflete cada passo da autenticação no status ao vivo.
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) handleEvent(line);
+    try {
+      // Lê o NDJSON e reflete cada passo da autenticação no status ao vivo.
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) handleEvent(line);
+      }
+      buffer += decoder.decode();
+      handleEvent(buffer); // última linha, caso não termine em \n
+    } catch {
+      return { error: 'A conexão com a busca do FastMedic foi interrompida. Tente novamente.' };
+    } finally {
+      reader.releaseLock();
     }
-    handleEvent(buffer); // última linha, caso não termine em \n
 
-    if (errorMessage) return { error: errorMessage };
+    const reference = responseRequestId ? ` Referência: ${responseRequestId}.` : '';
+    if (protocolError || terminalEvents !== 1) {
+      return { error: `O servidor devolveu uma resposta incompleta ou inválida.${reference}` };
+    }
+    if (errorMessage) return { error: `${errorMessage}${reference}` };
     if (!result) return { error: 'Solicitação não encontrada ou resposta vazia do FastMedic.' };
     return { result };
   };
